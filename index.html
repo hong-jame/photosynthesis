@@ -98,6 +98,12 @@ header.top{display:flex;align-items:center;gap:9px;flex:0 0 auto}
   padding:13px 15px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}
 .card h2{margin:0 0 3px;font-size:16px;flex:0 0 auto}
 .card .sub{color:var(--ink-dim);font-size:11.5px;margin:0 0 7px;line-height:1.4;flex:0 0 auto}
+.subtabs{display:flex;gap:6px;margin:0 0 7px;flex:0 0 auto}
+.subtab{flex:1;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:bold;padding:6px 8px;border-radius:10px;
+  background:rgba(255,255,255,.04);border:1px solid var(--glass-brd);color:var(--ink-dim);transition:.2s}
+.subtab.active{background:linear-gradient(120deg,rgba(79,227,122,.28),rgba(56,182,255,.22));
+  color:var(--ink);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.t.dim{opacity:.32}   /* NADPH/O2 not produced in cyclic mode */
 .hint{font-size:11.5px;color:var(--accent);background:rgba(79,227,255,.08);
   border:1px dashed rgba(79,227,255,.35);border-radius:10px;padding:6px 10px;margin:0 0 8px;flex:0 0 auto}
 .note{font-size:10px;color:var(--ink-dim);line-height:1.4;flex:0 0 auto}
@@ -305,7 +311,11 @@ path.spoke.lit{stroke:var(--citrate);stroke-width:3.5;filter:drop-shadow(0 0 6px
   <section class="panel active" id="panel0">
     <div class="card">
       <h2>1단계 · 명반응 (광인산화)</h2>
-      <div class="sub">☀️ 빛을 비추면 물이 분해되어(광분해) <b>O₂</b>가 나오고, 전자가 광계 II→I를 지나며 H⁺를 틸라코이드 내부에 축적합니다. 전자는 <b>NADPH</b>가 되고, H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>를 만듭니다.</div>
+      <div class="subtabs">
+        <button class="subtab active" data-mode="noncyclic">비순환적 광인산화</button>
+        <button class="subtab" data-mode="cyclic">순환적 광인산화</button>
+      </div>
+      <div class="sub" id="lightSub">☀️ <b>비순환적</b>: 물이 분해되어 <b>O₂</b>가 나오고, 전자가 PSII→b6f→PSI를 지나 <b>NADPH</b>가 됩니다. H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>도 생성 (ATP·NADPH·O₂).</div>
 
       <div class="etcWrap"><canvas id="etc"></canvas></div>
 
@@ -316,8 +326,8 @@ path.spoke.lit{stroke:var(--citrate);stroke-width:3.5;filter:drop-shadow(0 0 6px
         </div>
         <div class="tally" style="grid-template-columns:repeat(3,1fr);flex:0 0 auto">
           <div class="t"><div class="v" style="--c:var(--atp)" id="pATP">0</div><div class="k">ATP</div></div>
-          <div class="t"><div class="v" style="--c:var(--nadph)" id="pNADPH">0</div><div class="k">NADPH</div></div>
-          <div class="t"><div class="v" style="--c:var(--o2)" id="pO2">0</div><div class="k">O₂</div></div>
+          <div class="t" id="tallyNADPH"><div class="v" style="--c:var(--nadph)" id="pNADPH">0</div><div class="k">NADPH</div></div>
+          <div class="t" id="tallyO2"><div class="v" style="--c:var(--o2)" id="pO2">0</div><div class="k">O₂</div></div>
         </div>
       </div>
       <div class="etcbtns" style="margin-top:9px">
@@ -729,6 +739,7 @@ const ETC=(function(){
   let atpMade=0;
   let vortex=0;          // rotation angle for synthase
   let vortexActive=false;
+  let mode='noncyclic';   // 'noncyclic' (PSII→PSI→NADPH) or 'cyclic' (PSI 순환 → ATP만)
   let atpParticles=[];   // ejected ATP
   let shockwaves=[];
   let waterDrops=[];     // H2O formed at Complex IV
@@ -748,21 +759,35 @@ const ETC=(function(){
     protons.push({x:px,y,hx:px,hy:y,ph:Math.random()*6,
       space:inSpace,r:PR*(0.85+Math.random()*0.3), glow:Math.random()});
   }
-  function fireElectron(){   // ☀️ 빛 비추기 — non-cyclic electron flow (Z-scheme)
+  function fireElectron(){   // ☀️ 빛 비추기
     if(started===false)return;
     const psii=complexes.find(c=>c.label==='PSII');
     const b6f =complexes.find(c=>c.label==='b6f');
     const psi =complexes.find(c=>c.label==='PSI');
     const fnr =complexes.find(c=>c.matrixSide);
-    Audio2.blip(560,.14,'sine',.16,980);
-    const path=[
-      {x:psii.x, y:memBot+H*0.03},                         // water split at PSII (stroma side entry)
-      {x:psii.x, y:eY, pump:true, photo:true, splitWater:true}, // PSII: light flash, H2O→O2+2H+(lumen)
-      {x:b6f.x,  y:eY, pump:true},                         // b6f pumps H+ into lumen
-      {x:psi.x,  y:eY, photo:true},                        // PSI: re-excited by light (no pump)
-      {x:fnr.x,  y:eY, nadph:true},                        // FNR: electron → NADPH (terminus)
-    ];
-    electrons.push({path,seg:0,t:0,speed:.012+Math.random()*.004,trail:[],hue:150});
+    if(mode==='cyclic'){
+      // 순환적: PSI → 페레독신 → b6f(H⁺ 펌프) → PSI (전자 재순환). ATP만, NADPH·O₂ 없음, 물 분해 안 함.
+      Audio2.blip(470,.14,'sine',.16,720);
+      const path=[
+        {x:psi.x, y:eY, photo:true},                    // PSI(P700) 여기
+        {x:psi.x+0.05*W, y:memBot+H*0.14, fd:true},     // 페레독신 (스트로마 쪽)
+        {x:(psi.x+b6f.x)/2, y:memBot+H*0.05},           // 막 아래로 되돌아 이동
+        {x:b6f.x, y:eY, pump:true},                     // b6f: H⁺ 펌프 (전자 재진입)
+        {x:psi.x, y:eY, photo:true},                    // PSI로 복귀 — 순환 완성
+      ];
+      electrons.push({path,seg:0,t:0,speed:.011+Math.random()*.003,trail:[],hue:42});
+    } else {
+      // 비순환적: PSII → b6f → PSI → NADPH. 물 분해로 O₂·NADPH 생성.
+      Audio2.blip(560,.14,'sine',.16,980);
+      const path=[
+        {x:psii.x, y:memBot+H*0.03},                         // water split at PSII (stroma side entry)
+        {x:psii.x, y:eY, pump:true, photo:true, splitWater:true}, // PSII: light flash, H2O→O2+2H+(lumen)
+        {x:b6f.x,  y:eY, pump:true},                         // b6f pumps H+ into lumen
+        {x:psi.x,  y:eY, photo:true},                        // PSI: re-excited by light (no pump)
+        {x:fnr.x,  y:eY, nadph:true},                        // FNR: electron → NADPH (terminus)
+      ];
+      electrons.push({path,seg:0,t:0,speed:.012+Math.random()*.004,trail:[],hue:150});
+    }
   }
   function formO2(cx){ // 물의 광분해: H2O → ½O2 + 2H+ + 2e- ; O2 released, rises up/out
     waterDrops.push({x:cx+(Math.random()-.5)*22*S, y:memTop+H*0.10, vy:-(0.3+Math.random()*0.35), life:1, r:PR*1.1+Math.random()*2, wob:Math.random()*6, o2:true});
@@ -1061,6 +1086,7 @@ const ETC=(function(){
     onHide(){ visible=false; },
     fire(){fireElectron();},
     chem(){chemiosmosis();},
+    setMode(m){ mode=m; reset(); },
     reset(){reset();}
   };
 })();
@@ -1068,6 +1094,20 @@ $('#fireLight').onclick=()=>ETC.fire();
 $('#chemio').onclick=ETC.chem;
 $('#reset3').onclick=ETC.reset;
 $('#next1').onclick=()=>goStage(1);
+// 명반응 모드 전환: 비순환적 / 순환적 광인산화
+const lightModeInfo={
+  noncyclic:'☀️ <b>비순환적</b>: 물이 분해되어 <b>O₂</b>가 나오고, 전자가 PSII→b6f→PSI를 지나 <b>NADPH</b>가 됩니다. H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>도 생성 (ATP·NADPH·O₂).',
+  cyclic:'🔄 <b>순환적</b>: 전자가 PSI→페레독신→b6f→PSI로 <b>되돌아 순환</b>합니다. b6f에서 H⁺만 펌프 → <b>ATP만</b> 생성 (NADPH·O₂ 없음, 물 분해 안 함).'
+};
+$$('.subtab').forEach(tab=>tab.onclick=()=>{
+  const m=tab.dataset.mode;
+  $$('.subtab').forEach(x=>x.classList.toggle('active',x===tab));
+  ETC.setMode(m);
+  $('#lightSub').innerHTML=lightModeInfo[m];
+  const cyc=m==='cyclic';
+  $('#tallyNADPH').classList.toggle('dim',cyc);
+  $('#tallyO2').classList.toggle('dim',cyc);
+});
 
 /* ============================================================
    FINAL MODAL
