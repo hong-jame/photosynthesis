@@ -778,27 +778,30 @@ const ETC=(function(){
       ];
       electrons.push({path,seg:0,t:0,speed:.011+Math.random()*.003,trail:[],hue:42});
     } else {
-      // 비순환적: PSII → b6f → PSI → NADPH. 물 분해로 O₂·NADPH 생성.
+      // 비순환적: 루멘 물분해 → PSII → b6f → PSI → NADPH. 물 분해로 O₂·NADPH 생성.
       Audio2.blip(560,.14,'sine',.16,980);
       const path=[
-        {x:psii.x, y:memBot+H*0.03},                         // water split at PSII (stroma side entry)
-        {x:psii.x, y:eY, pump:true, photo:true, splitWater:true}, // PSII: light flash, H2O→O2+2H+(lumen)
-        {x:b6f.x,  y:eY, pump:true},                         // b6f pumps H+ into lumen
-        {x:psi.x,  y:eY, photo:true},                        // PSI: re-excited by light (no pump)
-        {x:fnr.x,  y:eY, nadph:true},                        // FNR: electron → NADPH (terminus)
+        {x:psii.x, y:memTop-H*0.07},                         // 루멘 속 물(H₂O) — 전자의 출발점
+        {x:psii.x, y:memTop+H*0.02, splitWater:true},        // PSII 루멘 쪽 OEC: 물 분해 → O₂·H⁺ 루멘 방출, 전자 공급
+        {x:psii.x, y:eY, pump:true, photo:true},             // PSII(P680) 빛 여기 + H⁺ 펌프
+        {x:b6f.x,  y:eY, pump:true},                         // b6f: H⁺ 루멘으로 펌프
+        {x:psi.x,  y:eY, photo:true},                        // PSI(P700): 빛으로 재여기
+        {x:fnr.x,  y:eY, nadph:true},                        // FNR: 전자 흐름 정지 → NADPH 생성 (종착)
       ];
       electrons.push({path,seg:0,t:0,speed:.012+Math.random()*.004,trail:[],hue:150});
     }
   }
-  function formO2(cx){ // 물의 광분해: H2O → ½O2 + 2H+ + 2e- ; O2 released, rises up/out
-    waterDrops.push({x:cx+(Math.random()-.5)*22*S, y:memTop+H*0.10, vy:-(0.3+Math.random()*0.35), life:1, r:PR*1.1+Math.random()*2, wob:Math.random()*6, o2:true});
+  function formO2(cx){ // 물의 광분해(루멘 쪽 OEC): 2H₂O → O₂ + 4H⁺ + 4e⁻ ; O₂는 루멘으로 방출
+    waterDrops.push({x:cx+(Math.random()-.5)*18*S, y:memTop-H*0.04, vy:-(0.35+Math.random()*0.4), life:1.3, r:PR*1.25+Math.random()*2, wob:Math.random()*6, o2:true});
+    shockwaves.push({x:cx,y:memTop-H*0.02,r:5*S,a:.85,water:true});   // 물 분해 플래시(루멘 쪽)
     $('#pO2').textContent=(parseInt($('#pO2').textContent,10)||0)+1;
-    Audio2.blip(300,.1,'sine',.08,600);
+    Audio2.blip(300,.12,'sine',.08,620);
   }
-  function formNADPH(cx){ // FNR: electron reduces NADP+ → NADPH (stroma side)
-    waterDrops.push({x:cx+(Math.random()-.5)*16*S, y:memBot+H*0.06, vy:0.35+Math.random()*0.4, life:1, r:PR*1.2+Math.random()*2, wob:Math.random()*6, nadph:true});
+  function formNADPH(cx){ // FNR: 전자 흐름 정지 → NADP⁺ + H⁺ + 2e⁻ → NADPH (스트로마 쪽)
+    waterDrops.push({x:cx+(Math.random()-.5)*14*S, y:memBot+H*0.07, vy:0.3+Math.random()*0.35, life:1.5, r:PR*1.5+Math.random()*2, wob:Math.random()*6, nadph:true, big:true});
+    shockwaves.push({x:cx,y:eY,r:6*S,a:.95,nadph:true});   // FNR에서 전자 정지 플래시
     $('#pNADPH').textContent=(parseInt($('#pNADPH').textContent,10)||0)+1;
-    Audio2.blip(520,.12,'sine',.09,760);
+    Audio2.blip(520,.14,'sine',.1,780);
   }
   function lightFlash(cx){ shockwaves.push({x:cx,y:eY,r:6*S,a:.9,light:true}); }
   function pumpAt(cx){ // conduct H+ from the matrix, up through the complex, into the space
@@ -886,8 +889,8 @@ const ETC=(function(){
     // shockwaves
     shockwaves=shockwaves.filter(s=>s.a>0);
     shockwaves.forEach(s=>{s.r+=3;s.a-=.02;
-      x.strokeStyle=s.light?`rgba(255,235,130,${s.a})`:`rgba(255,220,120,${s.a})`;x.lineWidth=2;
-      x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.stroke();});
+      x.strokeStyle = s.water?`rgba(130,205,255,${s.a})` : s.nadph?`rgba(196,121,255,${s.a})` : s.light?`rgba(255,235,130,${s.a})` : `rgba(255,220,120,${s.a})`;
+      x.lineWidth=2;x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.stroke();});
 
     // complexes
     const boxH=memBot-memTop + H*0.08;
@@ -998,10 +1001,10 @@ const ETC=(function(){
       const fill=isNadph?'rgba(196,121,255,.9)':(isO2?'rgba(120,205,255,.9)':'rgba(130,205,255,.9)');
       const label=isNadph?'NADPH':(isO2?'O₂':'H₂O');
       x.save();x.globalAlpha=Math.min(1,wd.life*1.6);
-      x.shadowColor=isNadph?'#c479ff':'#7fd0ff';x.shadowBlur=10*S;
+      x.shadowColor=isNadph?'#c479ff':'#7fd0ff';x.shadowBlur=(wd.big?16:10)*S;
       x.fillStyle=fill;
       x.beginPath();x.arc(wd.x+Math.sin(wd.wob)*1.5,wd.y,wd.r,0,7);x.fill();
-      x.fillStyle='rgba(8,26,44,.95)';x.font='bold '+(F.h*0.95)+'px Trebuchet MS';x.textAlign='center';
+      x.fillStyle='rgba(8,26,44,.95)';x.font='bold '+(F.h*(wd.big?1.25:0.95))+'px Trebuchet MS';x.textAlign='center';
       x.fillText(label,wd.x+Math.sin(wd.wob)*1.5,wd.y+F.h*0.34);
       x.restore();
     }
