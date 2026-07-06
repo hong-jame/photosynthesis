@@ -201,6 +201,7 @@ header.top{display:flex;align-items:center;gap:9px;flex:0 0 auto}
   padding:4px 9px;border-radius:999px;background:rgba(8,16,34,.92);box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .reactChip.in{color:var(--co2);border:1px solid color-mix(in srgb,var(--co2) 60%,transparent)}
 .reactChip.out{color:var(--ink-dim);border:1px solid var(--glass-brd)}
+.reactChip.gsrc{color:var(--nadph);border:1px solid color-mix(in srgb,var(--nadph) 60%,transparent)}
 .wheelCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
 .wheelCenter .big{font-size:22px;font-weight:bold;color:var(--atp);text-shadow:0 0 20px var(--atp)}
 .wheelCenter .sm{font-size:10px;color:var(--ink-dim);letter-spacing:1px}
@@ -640,14 +641,34 @@ function dropStage2(el,node){
 }
 function completeStage2(){
   $$('#spokes path').forEach(p=>p.classList.add('lit'));
-  addTally('g3p',+1);   // 회로 완성 시 추가 G3P (2 G3P → 포도당 재료)
-  $('#wheelCount').textContent='LOOP!';
+  addTally('g3p',+1);   // 회로 완성 시 추가 G3P (총 2개 → 포도당 재료)
   Audio2.good();
-  const wc=$('.wheelCenter');wc.animate([{transform:'translate(-50%,-50%) scale(1)'},
-    {transform:'translate(-50%,-50%) scale(1.4)'},{transform:'translate(-50%,-50%) scale(1)'}],{duration:700});
-  toast('캘빈 회로 완성! RuBP 재생 → G3P로 포도당 합성 🍬','good');
+  toast('캘빈 회로 완성! 2×G3P(C₃) → 포도당(C₆) 합성 🍬','good');
   $('#next2').disabled=false;markDone(1);addScore(5);
-  setTimeout(()=>{ $('#finScore').textContent=score; $('#finModal').classList.add('show'); Audio2.good(); },900);
+  showGlucose();   // 최종 산물: 2 G3P → 포도당
+  setTimeout(()=>{ $('#finScore').textContent=score; $('#finModal').classList.add('show'); Audio2.good(); },1900);
+}
+// 최종 산물: 2 × G3P (C₃) 가 합쳐져 포도당 (C₆) 1분자
+function showGlucose(){
+  const wheel=$('#wheel'), wc=$('.wheelCenter'); if(!wheel||!wc)return;
+  const wr=wheel.getBoundingClientRect(), cx=wr.width/2, cy=wr.height/2;
+  $('#wheelCount').textContent='';
+  [-1,1].forEach(dir=>{                              // 두 G3P 조각이 중앙으로 모임
+    const g=document.createElement('div'); g.className='reactChip gsrc'; g.textContent='G3P (C₃)';
+    g.style.left=(cx+dir*74)+'px'; g.style.top=cy+'px'; wheel.appendChild(g);
+    g.animate([
+      {transform:'translate(-50%,-50%) scale(.8)',opacity:0},
+      {transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.35},
+      {transform:`translate(calc(-50% - ${dir*74}px),-50%) scale(.5)`,opacity:0}
+    ],{duration:1100,easing:'ease-in'}).onfinish=()=>g.remove();
+  });
+  setTimeout(()=>{                                   // 중앙에 포도당 등장
+    $('#wheelCount').textContent='🍬';
+    wc.querySelector('.sm').textContent='포도당 (C₆) 완성!';
+    wc.animate([{transform:'translate(-50%,-50%) scale(.4)'},{transform:'translate(-50%,-50%) scale(1.4)'},
+      {transform:'translate(-50%,-50%) scale(1)'}],{duration:650});
+    Audio2.good();
+  },850);
 }
 $('#reset2').onclick=buildStage2;
 $('#next2').onclick=()=>goStage(1);
