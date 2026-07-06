@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>광합성 여정 · Photosynthesis Journey</title>
+<style>
+/* ============================================================
+   THEME & GLOBALS
+   ============================================================ */
+:root{
+  --bg-0:#03100a;
+  --bg-1:#08160f;
+  --bg-2:#111f3d;
+  --glass:rgba(20,34,66,0.55);
+  --glass-brd:rgba(120,180,255,0.18);
+  --ink:#eaf2ff;
+  --ink-dim:#9fb4d6;
+  --accent:#4fe37a;      /* leaf green */
+  --accent-2:#38b6ff;    /* sky blue */
+  --atp:#ffd451;         /* energy gold */
+  --nadh:#57f2b0;        /* green */
+  --fadh:#ff8bd0;        /* pink */
+  --co2:#8fa4c4;         /* grey */
+  --nadph:#c479ff;      /* NADPH violet */
+  --o2:#5ad1ff;         /* O2 sky */
+  --light:#ffe066;      /* sunlight */
+  --glucose:#ff9a5a;     /* orange */
+  --pyruvate:#ffd060;
+  --acetyl:#b98bff;
+  --oxalo:#5ad1ff;
+  --citrate:#6affc0;
+  --good:#3ff09a;
+  --bad:#ff5d6c;
+  --shadow:0 12px 40px rgba(0,0,0,.55);
+  --font:'Trebuchet MS','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--font);
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 700px at 15% -10%, #0f3324 0%, transparent 55%),
+    radial-gradient(1000px 800px at 110% 20%, #123a2e 0%, transparent 50%),
+    linear-gradient(160deg, var(--bg-1), var(--bg-0) 70%);
+  overflow:hidden;                 /* no page scroll — each stage fits one screen */
+  height:100%;
+  -webkit-user-select:none;user-select:none;
+}
+#stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+.wrap{position:relative;z-index:2;max-width:1080px;margin:0 auto;
+  height:100vh;height:100dvh;padding:9px 12px;display:flex;flex-direction:column;gap:8px}
+
+/* compact top bar */
+header.top{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.logo{display:flex;align-items:center;gap:9px;min-width:0}
+.logo .orb{width:32px;height:32px;border-radius:50%;flex:0 0 auto;
+  background:radial-gradient(circle at 30% 30%, #bff6ff, var(--accent) 40%, var(--accent-2) 100%);
+  box-shadow:0 0 16px var(--accent),0 0 32px rgba(124,107,255,.45);animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08);filter:brightness(1.2)}}
+.logo h1{font-size:15px;margin:0;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo h1 small{display:block;font-size:8.5px;color:var(--ink-dim);font-weight:400;letter-spacing:1.5px}
+.snd{cursor:pointer;background:var(--glass);border:1px solid var(--glass-brd);border-radius:999px;
+  width:34px;height:34px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:16px}
+.score-pill{margin-left:auto;display:flex;align-items:center;gap:7px;flex:0 0 auto;
+  background:var(--glass);border:1px solid var(--glass-brd);border-radius:999px;
+  padding:6px 13px;font-weight:bold;font-size:13px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+.score-pill .atp-ico{width:13px;height:13px;border-radius:4px;background:var(--atp);box-shadow:0 0 10px var(--atp)}
+#scoreVal{color:var(--atp);min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* compact stage tabs — always one row */
+.stages{display:flex;gap:6px;flex:0 0 auto}
+.stage-tab{flex:1 1 0;min-width:0;position:relative;cursor:pointer;display:flex;align-items:center;gap:8px;
+  background:var(--glass);border:1px solid var(--glass-brd);border-radius:12px;padding:7px 9px;
+  transition:.25s;backdrop-filter:blur(6px);overflow:hidden}
+.stage-tab .tnum{flex:0 0 auto;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:bold;
+  display:flex;align-items:center;justify-content:center;background:rgba(120,180,255,.16);color:var(--ink);border:1px solid var(--glass-brd)}
+.stage-tab .tlabel{font-size:12px;font-weight:bold;line-height:1.15;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage-tab .tlabel small{display:block;font-size:9px;color:var(--ink-dim);font-weight:400;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage-tab.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 6px 18px rgba(79,227,255,.2)}
+.stage-tab.active .tnum{background:linear-gradient(var(--accent),var(--accent-2));color:#04121f}
+.stage-tab.done .tnum{background:var(--good);color:#04121f}
+.stage-tab.locked{opacity:.4;cursor:not-allowed;filter:grayscale(.5)}
+
+/* panels fill the remaining height; only the active one is shown */
+.panel{flex:1 1 auto;min-height:0;display:none}
+.panel.active{display:flex;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--glass);border:1px solid var(--glass-brd);border-radius:18px;
+  padding:13px 15px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}
+.card h2{margin:0 0 3px;font-size:16px;flex:0 0 auto}
+.card .sub{color:var(--ink-dim);font-size:11.5px;margin:0 0 7px;line-height:1.4;flex:0 0 auto}
+.hint{font-size:11.5px;color:var(--accent);background:rgba(79,227,255,.08);
+  border:1px dashed rgba(79,227,255,.35);border-radius:10px;padding:6px 10px;margin:0 0 8px;flex:0 0 auto}
+.note{font-size:10px;color:var(--ink-dim);line-height:1.4;flex:0 0 auto}
+.note b{color:var(--atp)}
+.poolLbl{margin-top:8px;margin-bottom:4px;font-size:11px;color:var(--ink);flex:0 0 auto}
+
+/* generic molecule token */
+.mol{
+  --c:#8fa;position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:66px;padding:7px 10px;border-radius:13px;cursor:grab;
+  background:linear-gradient(160deg, color-mix(in srgb,var(--c) 35%, #0b1730), #0b1730);
+  border:1px solid color-mix(in srgb,var(--c) 60%, transparent);
+  box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.08);
+  transition:transform .15s, box-shadow .2s;touch-action:none;
+}
+.mol:active{cursor:grabbing}
+.mol.drag{opacity:.35}
+.mol .name{font-weight:bold;font-size:13px;color:var(--ink)}
+.mol .car{font-size:9.5px;color:var(--c);letter-spacing:.3px;font-weight:bold;filter:brightness(1.3)}
+.mol .kr{font-size:9px;color:var(--ink-dim)}
+.mol:hover{transform:translateY(-2px)}
+
+/* byproduct chips */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:bold;
+  padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
+.chip b{color:var(--c,#fff)}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+
+/* buttons */
+.btn{cursor:pointer;border:none;border-radius:12px;padding:9px 16px;font-weight:bold;font-size:13px;
+  color:#04121f;background:linear-gradient(120deg,var(--accent),#7ef0ff);box-shadow:0 8px 22px rgba(79,227,255,.35);
+  transition:.2s;font-family:var(--font)}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--glass-brd);box-shadow:none}
+.btn.gold{background:linear-gradient(120deg,var(--atp),#ffe89a);box-shadow:0 8px 22px rgba(255,212,81,.4)}
+.btn.nadh{background:linear-gradient(120deg,#4fe3ff,#8ff2ff);box-shadow:0 8px 22px rgba(79,227,255,.35)}
+.btn.fadh{background:linear-gradient(120deg,#3ff09a,#9dffc8);box-shadow:0 8px 22px rgba(63,240,154,.35)}
+.btn.light{background:linear-gradient(120deg,#ffe066,#fff2a8);color:#3a2c00;box-shadow:0 8px 22px rgba(255,224,102,.4)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none}
+.rowbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px;align-items:center;flex:0 0 auto}
+
+/* ============================================================
+   STAGE 1 — glycolysis flow
+   ============================================================ */
+.flow{display:flex;flex-direction:column;gap:9px;flex:1 1 auto;min-height:0;justify-content:center}
+.compartment{border-radius:14px;padding:10px 13px;position:relative}
+.compartment .lbl{position:absolute;top:7px;right:11px;font-size:9.5px;letter-spacing:1.5px;color:var(--ink-dim);font-weight:bold}
+.cyto{background:linear-gradient(160deg,rgba(60,90,140,.18),rgba(20,40,70,.15));border:1px solid rgba(120,170,255,.2)}
+.mito{background:
+   radial-gradient(120% 120% at 50% 0%, rgba(255,120,90,.08), transparent 60%),
+   linear-gradient(160deg,rgba(120,60,90,.18),rgba(50,20,40,.18));
+   border:1px solid rgba(255,140,120,.28)}
+.slotline{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:14px}
+.splitrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.branch{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--accent)}
+.branch.inline{flex-direction:row;gap:8px}
+.branchLbl{font-size:10px;color:var(--ink-dim);text-align:center;line-height:1.25;white-space:nowrap}
+.slotstack{display:flex;flex-direction:column;gap:8px}
+.arrow{color:var(--accent);font-size:19px;filter:drop-shadow(0 0 6px var(--accent));animation:slide 1.4s ease-in-out infinite}
+@keyframes slide{50%{transform:translateX(4px)}}
+.slot{
+  min-width:70px;min-height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  border:2px dashed rgba(140,180,255,.35);background:rgba(255,255,255,.03);color:var(--ink-dim);
+  font-size:10px;text-align:center;padding:5px;transition:.2s;position:relative
+}
+.slot small{opacity:.7;display:block;font-size:9px;margin-top:2px}
+.slot.over{border-color:var(--accent);background:rgba(79,227,255,.12);box-shadow:0 0 18px rgba(79,227,255,.3)}
+.slot.correct{border:2px solid var(--good);border-style:solid;background:rgba(63,240,154,.08);color:var(--good);animation:pop .4s}
+.slot.wrong{border-color:var(--bad);animation:shake .4s}
+@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pool{display:flex;gap:9px;flex-wrap:wrap;padding:8px;border-radius:12px;flex:0 0 auto;justify-content:center;
+  background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.06)}
+.byproducts{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px;min-height:0}
+
+/* ============================================================
+   STAGE 2 — TCA wheel
+   ============================================================ */
+.wheelStage{display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0}
+.wheelArea{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+.wheelWrap{position:relative;width:260px;height:260px;margin:0 auto}
+.wheelWrap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.node{
+  position:absolute;transform:translate(-50%,-50%);width:74px;height:60px;border-radius:13px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  border:2px dashed rgba(140,180,255,.35);background:rgba(10,20,40,.7);font-size:9.5px;color:var(--ink-dim);
+  transition:.2s;backdrop-filter:blur(3px)
+}
+.node .idx{position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:var(--accent-2);
+  color:#fff;font-size:10px;font-weight:bold;display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px var(--accent-2)}
+.node.fixed{border-style:solid;border-color:var(--oxalo);color:var(--ink);background:linear-gradient(160deg,rgba(90,209,255,.25),#0b1730)}
+.node.over{border-color:var(--accent);background:rgba(79,227,255,.15);box-shadow:0 0 18px rgba(79,227,255,.35)}
+.node.correct{border-style:solid;border-color:var(--good);color:var(--ink);animation:pop .4s;
+  background:linear-gradient(160deg,rgba(63,240,154,.22),#0b1730)}
+.node .nm{font-weight:bold;font-size:11px;color:var(--ink)}
+.node .cr{font-size:8.5px;font-weight:bold}
+.node .ghost{opacity:.34;font-style:italic}   /* faint hint of the correct answer in an empty slot */
+.node.correct .ghost,.node.fixed .ghost{opacity:1;font-style:normal}
+.reactChip{position:absolute;z-index:6;pointer-events:none;font-size:10px;font-weight:bold;white-space:nowrap;
+  padding:4px 9px;border-radius:999px;background:rgba(8,16,34,.92);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.reactChip.in{color:var(--co2);border:1px solid color-mix(in srgb,var(--co2) 60%,transparent)}
+.reactChip.out{color:var(--ink-dim);border:1px solid var(--glass-brd)}
+.wheelCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.wheelCenter .big{font-size:22px;font-weight:bold;color:var(--atp);text-shadow:0 0 20px var(--atp)}
+.wheelCenter .sm{font-size:10px;color:var(--ink-dim);letter-spacing:1px}
+.wheelSide{flex:0 0 auto}
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}
+.tally .t{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:6px 4px;text-align:center}
+.tally .t .v{font-size:16px;font-weight:bold;color:var(--c)}
+.tally .t .k{font-size:9px;color:var(--ink-dim)}
+path.spoke{stroke:rgba(120,170,255,.25);stroke-width:2;fill:none}
+path.spoke.lit{stroke:var(--citrate);stroke-width:3.5;filter:drop-shadow(0 0 6px var(--citrate));
+  stroke-dasharray:8 6;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-28}}
+
+/* ============================================================
+   STAGE 3 — ETC canvas
+   ============================================================ */
+.etcWrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(120,170,255,.2);flex:1 1 auto;min-height:0;
+  background:linear-gradient(180deg,#071a2e 0%,#0a2540 45%,#0a1830 100%)}
+#etc{display:block;width:100%;height:100%;max-width:100%;max-height:100%;touch-action:none}
+.etcHud{display:flex;gap:10px;flex-wrap:wrap;margin-top:9px;align-items:center;flex:0 0 auto}
+.gauge{flex:1 1 200px;min-width:160px}
+.gauge .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-dim);margin-bottom:4px}
+.gauge .lab b{color:var(--ink)}
+.bar{height:12px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.bar>span{display:block;height:100%;width:0%;border-radius:999px;transition:width .25s}
+.bar.h2>span{background:linear-gradient(90deg,#ffd451,#ff7ac0)}
+.bar.atp>span{background:linear-gradient(90deg,var(--atp),#fff2b0)}
+.etcbtns{display:flex;gap:9px;flex-wrap:wrap;flex:0 0 auto}
+
+/* ============================================================
+   TOAST + MODAL
+   ============================================================ */
+#toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(120px);
+  background:rgba(10,20,40,.92);border:1px solid var(--glass-brd);border-radius:14px;padding:12px 20px;
+  font-weight:bold;box-shadow:var(--shadow);z-index:50;transition:.35s;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.good{border-color:var(--good);color:var(--good)}
+#toast.bad{border-color:var(--bad);color:var(--bad)}
+#toast.info{border-color:var(--accent);color:var(--accent)}
+
+.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(2,6,14,.75);backdrop-filter:blur(4px);padding:20px}
+.modal.show{display:flex;animation:fade .3s}
+/* completion modal keeps its own centered box (not the game-card flex behaviour) */
+.modal .card{flex:0 0 auto;display:block;min-height:auto;overflow:visible;max-width:440px;text-align:center}
+.modal .box h2{font-size:23px}
+.modal .box .big{font-size:48px;font-weight:bold;color:var(--atp);text-shadow:0 0 26px var(--atp);margin:6px 0}
+
+/* fly particle for score */
+.fly{position:fixed;z-index:70;pointer-events:none;font-weight:bold;color:var(--atp);
+  text-shadow:0 0 12px var(--atp);font-size:16px}
+
+/* ---- compact tweaks for phones ---- */
+@media(max-width:560px){
+  .wrap{padding:8px 9px}
+  .logo h1 small{display:none}
+  .card{padding:11px 12px;border-radius:15px}
+  .card h2{font-size:15px}
+  .card .sub{font-size:11px;margin-bottom:6px}
+  .stage-tab{padding:6px 7px;gap:6px}
+  .stage-tab .tnum{width:20px;height:20px;font-size:11px}
+  .stage-tab .tlabel{font-size:11px}
+  .stage-tab .tlabel small{display:none}
+  .mol{min-width:60px;padding:6px 8px}
+  .mol .name{font-size:12px}
+  .btn{padding:10px 13px;font-size:12.5px}
+  .slot{min-width:64px;min-height:52px}
+}
+/* very short screens: drop optional prose to guarantee a no-scroll fit */
+@media(max-height:640px){
+  .card .sub{display:none}
+  .note{display:none}
+  .card h2{font-size:14px;margin-bottom:2px}
+  .stages{gap:5px}
+}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<div class="wrap">
+  <header class="top">
+    <div class="logo">
+      <div class="orb"></div>
+      <h1>광합성 여정<small>PHOTOSYNTHESIS JOURNEY</small></h1>
+    </div>
+    <div class="snd" id="sndBtn" title="소리 켜기/끄기">🔊</div>
+    <div class="score-pill"><span class="atp-ico"></span>점수 <span id="scoreVal">0</span></div>
+  </header>
+
+  <div class="stages" id="tabs">
+    <div class="stage-tab active" data-stage="0">
+      <div class="tnum">1</div><div class="tlabel">명반응<small>틸라코이드 막</small></div>
+    </div>
+    <div class="stage-tab locked" data-stage="1">
+      <div class="tnum">2</div><div class="tlabel">암반응<small>캘빈 회로</small></div>
+    </div>
+  </div>
+
+  <!-- ============ STAGE 1 · 명반응 ============ -->
+  <section class="panel active" id="panel0">
+    <div class="card">
+      <h2>1단계 · 명반응 (광인산화)</h2>
+      <div class="sub">☀️ 빛을 비추면 물이 분해되어(광분해) <b>O₂</b>가 나오고, 전자가 광계 II→I를 지나며 H⁺를 틸라코이드 내부에 축적합니다. 전자는 <b>NADPH</b>가 되고, H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>를 만듭니다.</div>
+
+      <div class="etcWrap"><canvas id="etc"></canvas></div>
+
+      <div class="etcHud">
+        <div class="gauge">
+          <div class="lab"><span>H⁺ 기울기 (틸라코이드 내부)</span><b><span id="h2v">0</span>%</b></div>
+          <div class="bar h2"><span id="h2bar"></span></div>
+        </div>
+        <div class="tally" style="grid-template-columns:repeat(3,1fr);flex:0 0 auto">
+          <div class="t"><div class="v" style="--c:var(--atp)" id="pATP">0</div><div class="k">ATP</div></div>
+          <div class="t"><div class="v" style="--c:var(--nadph)" id="pNADPH">0</div><div class="k">NADPH</div></div>
+          <div class="t"><div class="v" style="--c:var(--o2)" id="pO2">0</div><div class="k">O₂</div></div>
+        </div>
+      </div>
+      <div class="etcbtns" style="margin-top:9px">
+        <button class="btn light" id="fireLight">☀️ 빛 비추기</button>
+        <button class="btn gold" id="chemio" disabled>🌀 광인산화 (ATP 합성)</button>
+        <button class="btn ghost" id="reset3">초기화</button>
+        <button class="btn gold" id="next1" disabled style="margin-left:auto">암반응 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STAGE 2 · 암반응 ============ -->
+  <section class="panel" id="panel1">
+    <div class="card">
+      <h2>2단계 · 암반응 (캘빈 회로)</h2>
+      <div class="sub">명반응이 만든 <b>ATP·NADPH</b>로 CO₂를 고정해 포도당을 만듭니다. 중간 산물을 회로의 올바른 위치에 배치하세요. RuBP는 매 회전 재생됩니다. <span style="color:var(--ink-dim)">(실제 포도당 1개 = CO₂ 6·ATP 18·NADPH 12)</span></div>
+
+      <div class="wheelStage">
+        <div class="wheelArea">
+          <div class="wheelWrap" id="wheel">
+            <svg id="spokes" viewBox="0 0 400 400"></svg>
+            <div class="wheelCenter"><div class="big" id="wheelCount">0/4</div><div class="sm">배치 완료</div></div>
+          </div>
+        </div>
+        <div class="wheelSide">
+          <div class="pool" id="pool2"></div>
+          <div class="tally">
+            <div class="t"><div class="v" style="--c:var(--atp)" id="cATP">0</div><div class="k">ATP 저장</div></div>
+            <div class="t"><div class="v" style="--c:var(--nadph)" id="cNADPH">0</div><div class="k">NADPH 저장</div></div>
+            <div class="t"><div class="v" style="--c:var(--co2)" id="cCO2">0</div><div class="k">CO₂ 고정</div></div>
+            <div class="t"><div class="v" style="--c:var(--glucose)" id="cG3P">0</div><div class="k">G3P 생성</div></div>
+          </div>
+          <div class="rowbtns">
+            <button class="btn ghost" id="reset2">다시하기</button>
+            <button class="btn gold" id="next2" disabled>포도당 완성! 🎉</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="toast"></div>
+
+<div class="modal" id="finModal">
+  <div class="card box">
+    <div style="font-size:40px">🎉</div>
+    <h2>광합성 완성!</h2>
+    <div class="big" id="finScore">0</div>
+    <div style="color:var(--ink-dim)">총 점수</div>
+    <p style="color:var(--ink-dim);font-size:13.5px;line-height:1.6">
+      명반응(빛→ATP·NADPH·O₂) → 암반응(CO₂ 고정→포도당)으로 이어지는 광합성 전 과정을 완주했습니다!
+      빛에너지가 <b style="color:var(--accent)">포도당의 화학에너지</b>로 저장되었습니다.</p>
+    <div class="rowbtns" style="justify-content:center">
+      <button class="btn gold" id="restartAll">처음부터 다시</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CORE STATE + HELPERS
+   ============================================================ */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let score=0;
+const stageDone=[false,false,false];
+const PSpool={atp:0, nadph:0};     // products carried from light reactions
+
+function addScore(n,fromEl){
+  score+=n; $('#scoreVal').textContent=score;
+  const pill=$('.score-pill').getBoundingClientRect();
+  const sx=fromEl?fromEl.getBoundingClientRect().left+20:innerWidth/2;
+  const sy=fromEl?fromEl.getBoundingClientRect().top:innerHeight/2;
+  const f=document.createElement('div');f.className='fly';f.textContent='+'+n;
+  f.style.left=sx+'px';f.style.top=sy+'px';document.body.appendChild(f);
+  const dx=pill.left-sx, dy=pill.top-sy;
+  f.animate([{transform:'translate(0,0) scale(1)',opacity:1},
+    {transform:`translate(${dx}px,${dy}px) scale(.7)`,opacity:0}],
+    {duration:800,easing:'cubic-bezier(.5,-.3,.3,1)'}).onfinish=()=>f.remove();
+  $('.score-pill').animate([{transform:'scale(1)'},{transform:'scale(1.14)'},{transform:'scale(1)'}],{duration:400});
+}
+function toast(msg,type='info'){
+  const t=$('#toast');t.textContent=msg;t.className='show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',1900);
+}
+
+/* ---------- STARFIELD ---------- */
+(function(){
+  const c=$('#stars'),x=c.getContext('2d');let W,H,ps=[];
+  function rs(){W=c.width=innerWidth;H=c.height=innerHeight;
+    ps=[...Array(90)].map(()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,
+      a:Math.random(),s:Math.random()*.02+.004}))}
+  rs();addEventListener('resize',rs);
+  (function loop(){x.clearRect(0,0,W,H);
+    for(const p of ps){p.a+=p.s;const g=(Math.sin(p.a)+1)/2;
+      x.globalAlpha=.15+g*.7;x.fillStyle=g>.6?'#bff6ff':'#6f9ad6';
+      x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill()}
+    x.globalAlpha=1;requestAnimationFrame(loop)})();
+})();
+
+/* ============================================================
+   AUDIO  (WebAudio, no external files)
+   ============================================================ */
+const Audio2=(function(){
+  let ctx=null,on=true,pad=null,padGain=null;
+  function ac(){if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();}return ctx;}
+  function blip(freq=440,dur=.12,type='sine',vol=.25,slideTo=null){
+    if(!on)return;const c=ac();const o=c.createOscillator(),g=c.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,c.currentTime);
+    if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,c.currentTime+dur);
+    g.gain.setValueAtTime(0,c.currentTime);
+    g.gain.linearRampToValueAtTime(vol,c.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+dur);
+    o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+dur+.02);
+  }
+  function chord(freqs,dur=.4,vol=.16){freqs.forEach((f,i)=>setTimeout(()=>blip(f,dur,'triangle',vol),i*40));}
+  function good(){chord([523,659,784],.35,.18);}
+  function wrong(){blip(180,.22,'sawtooth',.18,120);}
+  function pump(){blip(240+Math.random()*40,.16,'sine',.05,440);}  // soft rising glide = upward flow
+  function tick(){blip(880,.05,'square',.06);}
+  // escalating pad for chemiosmosis climax
+  function padStart(){
+    if(!on)return;const c=ac();padGain=c.createGain();padGain.gain.value=0;
+    padGain.connect(c.destination);pad=[];
+    [110,164.8,220,329.6].forEach(f=>{const o=c.createOscillator();o.type='sawtooth';
+      o.frequency.value=f;const g=c.createGain();g.gain.value=.05;o.connect(g).connect(padGain);o.start();pad.push(o);});
+    padGain.gain.linearRampToValueAtTime(.3,c.currentTime+2.2);
+  }
+  function padRamp(){if(pad&&on){const c=ac();pad.forEach(o=>o.frequency.linearRampToValueAtTime(o.frequency.value*1.5,c.currentTime+1.5));}}
+  function padStop(){if(pad){const c=ac();padGain.gain.linearRampToValueAtTime(0,c.currentTime+1);
+    pad.forEach(o=>o.stop(c.currentTime+1.1));pad=null;}}
+  function whirl(){ // rhythmic climax burst
+    if(!on)return;let n=0;const iv=setInterval(()=>{blip(400+n*60,.08,'triangle',.14,700+n*80);n++;if(n>14)clearInterval(iv);},70);
+    chord([523,659,784,1046],.8,.2);
+  }
+  return{blip,good,wrong,pump,tick,padStart,padRamp,padStop,whirl,
+    toggle(){on=!on;if(!on)padStop();return on;},resume(){ac().resume&&ac().resume();}};
+})();
+$('#sndBtn').onclick=()=>{const s=Audio2.toggle();$('#sndBtn').textContent=s?'🔊':'🔇';};
+document.addEventListener('pointerdown',()=>Audio2.resume(),{once:true});
+
+/* ============================================================
+   TAB / STAGE NAV
+   ============================================================ */
+function unlock(i){$$('.stage-tab')[i].classList.remove('locked');}
+function goStage(i){
+  if($$('.stage-tab')[i].classList.contains('locked'))return;
+  $$('.stage-tab').forEach((t,k)=>t.classList.toggle('active',k===i));
+  $$('.panel').forEach((p,k)=>p.classList.toggle('active',k===i));
+  if(i===0)ETC.onShow(); else ETC.onHide();
+  if(i===1){carryPool();sizeWheel();requestAnimationFrame(sizeWheel);}
+}
+// size the TCA wheel to the largest square that fits its flex area (no scroll)
+function sizeWheel(){
+  const area=$('.wheelArea'), w=$('#wheel'); if(!area||!w)return;
+  const aw=area.clientWidth, ah=area.clientHeight;
+  if(aw<40||ah<40)return;                 // not visible yet
+  const s=Math.max(180, Math.min(aw, ah));
+  w.style.width=s+'px'; w.style.height=s+'px';
+}
+addEventListener('resize',()=>{ if($('#panel1').classList.contains('active'))sizeWheel(); });
+if(window.ResizeObserver){ const _wa=$('.wheelArea'); if(_wa) new ResizeObserver(()=>{ if($('#panel1').classList.contains('active'))sizeWheel(); }).observe(_wa); }
+$$('.stage-tab').forEach(t=>t.onclick=()=>goStage(+t.dataset.stage));
+function markDone(i){stageDone[i]=true;$$('.stage-tab')[i].classList.add('done');}
+
+/* ============================================================
+   DRAG & DROP ENGINE  (pointer based, works on touch)
+   ============================================================ */
+function makeDraggable(el,onDrop){
+  el.addEventListener('pointerdown',e=>{
+    if(el.dataset.placed)return;
+    e.preventDefault();
+    const r=el.getBoundingClientRect();
+    const ghost=el.cloneNode(true);
+    ghost.style.cssText+=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;
+      z-index:100;pointer-events:none;transform:scale(1.06);box-shadow:0 18px 44px rgba(0,0,0,.6)`;
+    document.body.appendChild(ghost);
+    el.classList.add('drag');
+    const ox=e.clientX-r.left, oy=e.clientY-r.top;
+    Audio2.blip(660,.06,'sine',.12);
+    let curTarget=null;
+    const targets=$$('[data-accept],.node:not(.fixed)').filter(t=>!t.dataset.placed);
+    function move(ev){
+      ghost.style.left=(ev.clientX-ox)+'px';ghost.style.top=(ev.clientY-oy)+'px';
+      let hit=null;
+      for(const t of targets){const b=t.getBoundingClientRect();
+        if(ev.clientX>b.left&&ev.clientX<b.right&&ev.clientY>b.top&&ev.clientY<b.bottom){hit=t;break;}}
+      if(hit!==curTarget){curTarget&&curTarget.classList.remove('over');
+        curTarget=hit;curTarget&&curTarget.classList.add('over');}
+    }
+    function up(ev){
+      document.removeEventListener('pointermove',move);
+      document.removeEventListener('pointerup',up);
+      ghost.remove();el.classList.remove('drag');
+      curTarget&&curTarget.classList.remove('over');
+      if(curTarget)onDrop(el,curTarget);
+    }
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  });
+}
+
+/* ============================================================
+   SHARED — molecule token markup
+   ============================================================ */
+function molHTML(m){
+  const car = m.car ?? m.cr ?? '';   // stage-1 tokens use `car`, stage-2 nodes use `cr`
+  return `<div class="mol" style="--c:${m.c}" data-id="${m.id}">
+    <span class="name">${m.name}</span><span class="car">${car}</span><span class="kr">${m.kr}</span></div>`;
+}
+/* ============================================================
+   STAGE 2 — CALVIN CYCLE WHEEL
+   ============================================================ */
+const S2={
+  // order clockwise starting top; RuBP is fixed anchor (top), regenerated each turn
+  nodes:[
+    {id:'rubp',  name:'RuBP',    cr:'C₅',kr:'리불로스 1,5-이인산',c:'var(--citrate)',fixed:true},
+    {id:'pga',   name:'3-PGA',   cr:'C₃',kr:'3-인산글리세르산',c:'#ffd060'},
+    {id:'bpg',   name:'1,3-BPG', cr:'C₃',kr:'1,3-이인산글리세르산',c:'#ff9a5a'},
+    {id:'g3p',   name:'G3P',     cr:'C₃',kr:'글리세르알데하이드 3-인산',c:'var(--nadph)'},
+    {id:'ru5p',  name:'Ru5P',    cr:'C₅',kr:'리불로스 5-인산',c:'#8be3ff'},
+  ],
+  placedCount:0
+};
+function buildStage2(){
+  const wheel=$('#wheel');
+  $$('#wheel .node').forEach(n=>n.remove());
+  const svg=$('#spokes');svg.innerHTML='';
+  S2.placedCount=0;$('#wheelCount').textContent='0/4';
+  ['cATP','cNADPH','cCO2','cG3P'].forEach(id=>$('#'+id).textContent='0');
+  carryPool();
+  $('#next2').disabled=true;
+  const N=S2.nodes.length,R=42,cx=50,cy=50;
+  // draw ring spokes
+  for(let i=0;i<N;i++){
+    const a1=(i/N)*2*Math.PI-Math.PI/2, a2=((i+1)/N)*2*Math.PI-Math.PI/2;
+    const x1=200+Math.cos(a1)*168,y1=200+Math.sin(a1)*168;
+    const x2=200+Math.cos(a2)*168,y2=200+Math.sin(a2)*168;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    // true circular arc (radius 168) → a perfect ring, not a bulged/dented curve
+    p.setAttribute('d',`M${x1} ${y1} A 168 168 0 0 1 ${x2} ${y2}`);
+    p.setAttribute('class','spoke');p.dataset.seg=i;svg.appendChild(p);
+  }
+  // place node holders
+  S2.nodes.forEach((nd,i)=>{
+    const a=(i/N)*2*Math.PI-Math.PI/2;
+    const x=cx+Math.cos(a)*R, y=cy+Math.sin(a)*R;
+    const d=document.createElement('div');
+    d.className='node'+(nd.fixed?' fixed':'');d.style.left=x+'%';d.style.top=y+'%';
+    d.dataset.accept=nd.id;
+    if(nd.fixed){d.dataset.placed='1';d.innerHTML=nodeInner(nd);}
+    else d.innerHTML=`<div class="idx">${i}</div><div class="nm ghost">${nd.name}</div><div class="cr ghost" style="color:${nd.c}">${nd.cr} · ${nd.kr}</div>`;
+    wheel.appendChild(d);
+  });
+  // pool (shuffled, excluding fixed)
+  const pool=$('#pool2');pool.innerHTML='';
+  const items=S2.nodes.filter(n=>!n.fixed).sort(()=>Math.random()-.5);
+  items.forEach(m=>pool.insertAdjacentHTML('beforeend',molHTML(m)));
+  $$('#pool2 .mol').forEach(el=>makeDraggable(el,dropStage2));
+  sizeWheel();
+}
+function nodeInner(nd){return `<div class="nm">${nd.name}</div><div class="cr" style="color:${nd.c}">${nd.cr} · ${nd.kr}</div>`;}
+// Calvin step effects: what each intermediate's formation consumes/produces
+const S2effect={
+  pga:  {co2:+1},               // 탄소고정 (RuBisCO): CO2 고정
+  bpg:  {atp:-1},               // 인산화: ATP 소비
+  g3p:  {nadph:-1, g3p:+1},     // 환원: NADPH 소비, G3P 생성
+  ru5p: {atp:-1},               // 재생 준비: ATP 소비
+};
+const S2tallyId={atp:'cATP',nadph:'cNADPH',co2:'cCO2',g3p:'cG3P'};
+const S2label={atp:'ATP',nadph:'NADPH',co2:'CO₂',g3p:'G3P'};
+function addTally(key,delta){
+  const el=$('#'+S2tallyId[key]); if(!el)return;
+  el.textContent=(parseInt(el.textContent,10)||0)+delta;
+  el.animate([{transform:'scale(1)'},{transform:'scale(1.55)'},{transform:'scale(1)'}],{duration:420});
+  const box=el.closest('.t'); if(box)box.animate([{filter:'brightness(2)'},{filter:'brightness(1)'}],{duration:520});
+  Audio2.tick();
+}
+// shared pool carry-over from light reactions
+function carryPool(){ $('#cATP').textContent=PSpool.atp; $('#cNADPH').textContent=PSpool.nadph; }
+// CO2 fixation animation: CO2 enters as RuBP → 3-PGA (RuBisCO)
+function showFixation(){
+  const wheel=$('#wheel'), rubpN=$('#wheel .node[data-accept="rubp"]'), pgaN=$('#wheel .node[data-accept="pga"]');
+  if(!wheel||!rubpN||!pgaN)return;
+  const wr=wheel.getBoundingClientRect(), o=rubpN.getBoundingClientRect(), c=pgaN.getBoundingClientRect();
+  const ox=o.left-wr.left+o.width/2, oy=o.top-wr.top+o.height/2;
+  const cx=c.left-wr.left+c.width/2, cy=c.top-wr.top+c.height/2;
+  const inC=document.createElement('div'); inC.className='reactChip in'; inC.textContent='+ CO₂ (C1) 고정';
+  inC.style.left=ox+'px'; inC.style.top=oy+'px'; wheel.appendChild(inC);
+  inC.animate([
+    {transform:'translate(-50%,-50%) scale(.7)',opacity:0},
+    {transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.3},
+    {transform:`translate(calc(-50% + ${cx-ox}px), calc(-50% + ${cy-oy}px)) scale(.9)`,opacity:0}
+  ],{duration:1400,easing:'ease-in-out'}).onfinish=()=>inC.remove();
+}
+function dropStage2(el,node){
+  if(!node.classList.contains('node'))return;
+  const need=node.dataset.accept, got=el.dataset.id;
+  if(need!==got){node.classList.add('over');Audio2.wrong();toast('이 위치의 산물이 아니에요','bad');
+    setTimeout(()=>node.classList.remove('over'),300);return;}
+  const nd=S2.nodes.find(n=>n.id===got);
+  node.classList.remove('over');node.classList.add('correct');node.dataset.placed='1';
+  node.innerHTML=nodeInner(nd);el.style.display='none';el.dataset.placed='1';
+  Audio2.blip(700+S2.placedCount*60,.14,'sine',.18);
+  S2.placedCount++;$('#wheelCount').textContent=S2.placedCount+'/4';
+  // light spoke segment
+  const seg=$(`#spokes path[data-seg="${S2.nodes.findIndex(n=>n.id===got)-1}"]`);
+  const seg2=$(`#spokes path[data-seg="${S2.nodes.findIndex(n=>n.id===got)}"]`);
+  seg&&seg.classList.add('lit');seg2&&seg2.classList.add('lit');
+  // apply this step's consumption/production
+  const eff=S2effect[got]||{};
+  Object.keys(eff).forEach(k=>addTally(k,eff[k]));
+  if(got==='pga'){ showFixation(); toast('탄소 고정: RuBP(C₅) + CO₂ → 2×3-PGA(C₃)','info'); }
+  if(got==='bpg') toast('ATP 1 소비 (인산화)','info');
+  if(got==='g3p') toast('NADPH 1 소비 → G3P 생성! (환원)','good');
+  if(got==='ru5p') toast('ATP 1 소비 (RuBP 재생 준비)','info');
+  addScore(1,node);
+  if(S2.placedCount>=4)completeStage2();
+}
+function completeStage2(){
+  $$('#spokes path').forEach(p=>p.classList.add('lit'));
+  addTally('g3p',+1);   // 회로 완성 시 추가 G3P (2 G3P → 포도당 재료)
+  $('#wheelCount').textContent='LOOP!';
+  Audio2.good();
+  const wc=$('.wheelCenter');wc.animate([{transform:'translate(-50%,-50%) scale(1)'},
+    {transform:'translate(-50%,-50%) scale(1.4)'},{transform:'translate(-50%,-50%) scale(1)'}],{duration:700});
+  toast('캘빈 회로 완성! RuBP 재생 → G3P로 포도당 합성 🍬','good');
+  $('#next2').disabled=false;markDone(1);addScore(5);
+  setTimeout(()=>{ $('#finScore').textContent=score; $('#finModal').classList.add('show'); Audio2.good(); },900);
+}
+$('#reset2').onclick=buildStage2;
+$('#next2').onclick=()=>goStage(1);
+
+/* ============================================================
+   STAGE 3 — ELECTRON TRANSPORT CHAIN (canvas)
+   ============================================================ */
+const ETC=(function(){
+  const cv=$('#etc'),x=cv.getContext('2d');
+  // responsive logical size (CSS px); recomputed by layout()
+  let W=1000,H=440,DPR=1,S=1,vScale=1;
+  let raf=null, started=false, visible=false;
+  // membrane geometry (recomputed by layout())
+  let memTop=150, memBot=250, eY=200;
+  let complexes=[];
+  let F={region:13,cx:15,sub:10,h:8,e:9,atp:9,syn:11}; // font sizes
+  let PR=6; // proton radius baseline
+  function layout(){
+    const box = cv.parentNode;                   // .etcWrap (flex:1) — fill its box exactly
+    const oldW=W, oldH=H;
+    W = Math.max(280, box.clientWidth || 340);
+    H = Math.max(170, box.clientHeight || Math.round(W*0.5));
+    DPR = Math.min(window.devicePixelRatio||1, 2.5);
+    cv.width = Math.round(W*DPR);
+    cv.height = Math.round(H*DPR);
+    cv.style.width = W+'px'; cv.style.height = H+'px';
+    x.setTransform(DPR,0,0,DPR,0,0);
+    S = clamp(W/1000, .4, 1);
+    vScale = H/440;
+    memTop = H*0.30; memBot = H*0.53; eY = (memTop+memBot)/2;
+    const fx=[0.14,0.34,0.55,0.72,0.87];
+    complexes=[
+      {x:fx[0]*W,label:'PSII', kr:'광계 II'},
+      {x:fx[1]*W,label:'b6f',  kr:'시토크롬 b6f'},
+      {x:fx[2]*W,label:'PSI',  kr:'광계 I'},
+      {x:fx[3]*W,label:'FNR',  kr:'NADP⁺ 환원효소', matrixSide:true},
+      {x:fx[4]*W,label:'ATP\n합성효소', kr:'ATP 합성효소', synthase:true},
+    ];
+    F={
+      region:clamp(W*0.02,10,14), cx:clamp(W*0.017,11,16), sub:clamp(W*0.011,8.5,11),
+      h:clamp(W*0.009,7,10), e:clamp(W*0.011,8.5,12), atp:clamp(W*0.011,8.5,12), syn:clamp(W*0.013,9.5,13)
+    };
+    PR = clamp(W*0.006,3.6,6.5);
+    // on a real resize, rescale persistent H+ so the gradient survives rotation
+    if(oldW && (oldW!==W || oldH!==H)){
+      const rx=W/oldW, ry=H/oldH;
+      for(const p of protons){
+        p.x*=rx; p.y*=ry;
+        if(p.hx!=null)p.hx*=rx; if(p.hy!=null)p.hy*=ry;
+        if(p.target!=null)p.target*=ry; p.r*=Math.min(rx,ry);
+      }
+      electrons=[]; atpParticles=[]; shockwaves=[]; // clear short-lived items
+    }
+  }
+  let electrons=[];      // moving light points
+  let protons=[];        // H+ ions
+  let h2level=0;         // 0..100 gradient
+  let atpMade=0;
+  let vortex=0;          // rotation angle for synthase
+  let vortexActive=false;
+  let atpParticles=[];   // ejected ATP
+  let shockwaves=[];
+  let waterDrops=[];     // H2O formed at Complex IV
+  const H2_MAX=100;
+
+  function reset(){
+    electrons=[];protons=[];atpParticles=[];shockwaves=[];waterDrops=[];
+    h2level=0;atpMade=0;vortex=0;vortexActive=false;
+    $('#fireLight').disabled=false;$('#chemio').disabled=true;
+    $('#pATP').textContent='0';$('#pNADPH').textContent='0';$('#pO2').textContent='0';
+    updateHud();
+    // seed some ambient protons in matrix
+    for(let i=0;i<10;i++)spawnProton(memBot + H*0.07 + Math.random()*H*0.28, false);
+  }
+  function spawnProton(y,inSpace){
+    const px=W*0.08+Math.random()*W*0.84;
+    protons.push({x:px,y,hx:px,hy:y,ph:Math.random()*6,
+      space:inSpace,r:PR*(0.85+Math.random()*0.3), glow:Math.random()});
+  }
+  function fireElectron(){   // ☀️ 빛 비추기 — non-cyclic electron flow (Z-scheme)
+    if(started===false)return;
+    const psii=complexes.find(c=>c.label==='PSII');
+    const b6f =complexes.find(c=>c.label==='b6f');
+    const psi =complexes.find(c=>c.label==='PSI');
+    const fnr =complexes.find(c=>c.matrixSide);
+    Audio2.blip(560,.14,'sine',.16,980);
+    const path=[
+      {x:psii.x, y:memBot+H*0.03},                         // water split at PSII (stroma side entry)
+      {x:psii.x, y:eY, pump:true, photo:true, splitWater:true}, // PSII: light flash, H2O→O2+2H+(lumen)
+      {x:b6f.x,  y:eY, pump:true},                         // b6f pumps H+ into lumen
+      {x:psi.x,  y:eY, photo:true},                        // PSI: re-excited by light (no pump)
+      {x:fnr.x,  y:eY, nadph:true},                        // FNR: electron → NADPH (terminus)
+    ];
+    electrons.push({path,seg:0,t:0,speed:.012+Math.random()*.004,trail:[],hue:150});
+  }
+  function formO2(cx){ // 물의 광분해: H2O → ½O2 + 2H+ + 2e- ; O2 released, rises up/out
+    waterDrops.push({x:cx+(Math.random()-.5)*22*S, y:memTop+H*0.10, vy:-(0.3+Math.random()*0.35), life:1, r:PR*1.1+Math.random()*2, wob:Math.random()*6, o2:true});
+    $('#pO2').textContent=(parseInt($('#pO2').textContent,10)||0)+1;
+    Audio2.blip(300,.1,'sine',.08,600);
+  }
+  function formNADPH(cx){ // FNR: electron reduces NADP+ → NADPH (stroma side)
+    waterDrops.push({x:cx+(Math.random()-.5)*16*S, y:memBot+H*0.06, vy:0.35+Math.random()*0.4, life:1, r:PR*1.2+Math.random()*2, wob:Math.random()*6, nadph:true});
+    $('#pNADPH').textContent=(parseInt($('#pNADPH').textContent,10)||0)+1;
+    Audio2.blip(520,.12,'sine',.09,760);
+  }
+  function lightFlash(cx){ shockwaves.push({x:cx,y:eY,r:6*S,a:.9,light:true}); }
+  function pumpAt(cx){ // conduct H+ from the matrix, up through the complex, into the space
+    const n=2;
+    for(let i=0;i<n;i++){
+      const off=(i-(n-1)/2)*9*S;                       // small spread inside the channel
+      protons.push({
+        x:cx+off+(Math.random()-.5)*6*S,
+        y:memBot + H*0.10 + Math.random()*H*0.06,        // start down in the matrix
+        channelX:cx+off,                                 // the protein channel to funnel into
+        targetY:memTop - H*0.05 - Math.random()*H*0.16,  // rest point in the space
+        speed:(H*0.010 + Math.random()*H*0.004),         // steady conduction speed
+        traveling:true, space:false, r:PR, glow:Math.random()*6});
+    }
+    Audio2.pump();
+  }
+  function updateHud(){
+    $('#h2v').textContent=Math.round(h2level);
+    $('#h2bar').style.width=h2level+'%';
+    $('#chemio').disabled = Math.round(h2level)<100 || vortexActive;
+  }
+
+  /* ---------- CHEMIOSMOSIS CLIMAX ---------- */
+  function chemiosmosis(){
+    if(vortexActive||Math.round(h2level)<100)return;
+    vortexActive=true;$('#chemio').disabled=true;$('#fireLight').disabled=true;
+    Audio2.padStart();setTimeout(()=>Audio2.padRamp(),1400);
+    Audio2.whirl();
+    toast('🌀 광인산화! H⁺가 ATP 합성효소를 통해 스트로마로 나가며 ATP 생성','info');
+    const synth=complexes.find(c=>c.synthase);
+    // funnel every accumulated H+ DOWN through the ATP synthase (facilitated diffusion: space → matrix)
+    protons.forEach(p=>{ if(p.space){ p.space=false; p.rushing=true; p.entered=false;
+      p.synX=synth.x; p.rushSpeed=(H*0.012+Math.random()*H*0.006); } });
+    let made=0;const target=34;
+    const iv=setInterval(()=>{
+      const batch=Math.ceil(Math.random()*3)+1;
+      for(let i=0;i<batch&&made<target;i++){
+        made++;atpMade=made;
+        $('#pATP').textContent=made;
+        ejectATP();
+        h2level=Math.max(0,H2_MAX*(1-made/target));
+      }
+      shockwaves.push({x:synth.x,y:memBot+H*0.03,r:10*S,a:.7});
+      Audio2.blip(700+made*8,.06,'triangle',.12);
+      updateHud();
+      if(made>=target){
+        clearInterval(iv);finishChemio();
+      }
+    },110);
+  }
+  function ejectATP(){
+    const sx=(complexes.find(c=>c.synthase)||{x:W*0.85}).x;
+    atpParticles.push({x:sx+(Math.random()-.5)*10,y:memBot+H*0.09,
+      vx:(Math.random()-.5)*3*S,vy:(2+Math.random()*2)*vScale,life:1,rot:Math.random()*6});
+  }
+  function finishChemio(){
+    Audio2.padStop();
+    addScore(18);
+    PSpool.atp = parseInt($('#pATP').textContent,10)||0;
+    PSpool.nadph = parseInt($('#pNADPH').textContent,10)||0;
+    toast('명반응 완료! ATP·NADPH·O₂ 생성 → 이제 암반응으로 🌿','good');
+    markDone(0); unlock(1);
+    $('#next1').disabled=false;
+  }
+
+  /* ---------- RENDER ---------- */
+  function draw(){
+    x.clearRect(0,0,W,H);
+    // region labels/background bands
+    x.fillStyle='rgba(120,180,255,.06)';x.fillRect(0,0,W,memTop); // intermembrane space
+    x.fillStyle='rgba(255,140,110,.05)';x.fillRect(0,memBot,W,H-memBot); // matrix
+    // labels (shortened on narrow screens)
+    x.fillStyle='rgba(180,210,255,.55)';x.font=F.region+'px Trebuchet MS';x.textAlign='left';
+    const spaceLbl = W<560 ? '틸라코이드 내부 (H⁺ 축적)' : '틸라코이드 내부 (루멘) · H⁺ 축적';
+    const matrixLbl= W<560 ? '스트로마 (Stroma)' : '스트로마 · Stroma';
+    x.fillText(spaceLbl,12,F.region+6);
+    x.fillText(matrixLbl,12,H-8);
+    // membrane band (phospholipid)
+    const grad=x.createLinearGradient(0,memTop,0,memBot);
+    grad.addColorStop(0,'#123a5a');grad.addColorStop(.5,'#0d2740');grad.addColorStop(1,'#123a5a');
+    x.fillStyle=grad;x.fillRect(0,memTop,W,memBot-memTop);
+    x.strokeStyle='rgba(120,180,255,.25)';x.lineWidth=1;
+    x.beginPath();x.moveTo(0,memTop);x.lineTo(W,memTop);x.moveTo(0,memBot);x.lineTo(W,memBot);x.stroke();
+
+    // shockwaves
+    shockwaves=shockwaves.filter(s=>s.a>0);
+    shockwaves.forEach(s=>{s.r+=3;s.a-=.02;
+      x.strokeStyle=s.light?`rgba(255,235,130,${s.a})`:`rgba(255,220,120,${s.a})`;x.lineWidth=2;
+      x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.stroke();});
+
+    // complexes
+    const boxH=memBot-memTop + H*0.08;
+    complexes.forEach((c,i)=>{
+      const w=clamp(W*(c.synthase?0.085:0.066), c.synthase?46:40, c.synthase?86:74);
+      const cx=c.x, cy=(memTop+memBot)/2;
+      if(c.synthase){drawSynthase(cx,cy,w);}
+      else if(c.matrixSide){
+        // Complex II: membrane-ASSOCIATED (NOT transmembrane) — attached to the matrix-side surface only
+        const w2=w*0.9, topY=memBot-H*0.012, h2=H*0.14;   // top just touches the membrane, body sits in the matrix
+        x.save();
+        x.fillStyle='rgba(38,86,72,.95)';x.strokeStyle='rgba(120,220,165,.6)';x.lineWidth=2;
+        roundRect(cx-w2/2,topY,w2,h2,Math.min(11,w2*0.22));x.fill();x.stroke();
+        x.fillStyle='#c6efd6';x.font='bold '+F.cx+'px Trebuchet MS';x.textAlign='center';
+        x.fillText(c.label,cx,topY+h2*0.5+F.cx*0.34);
+        x.fillStyle='rgba(180,230,200,.7)';x.font=F.sub+'px Trebuchet MS';
+        x.fillText(c.kr,cx,topY+h2+F.sub+2);
+        x.restore();
+      }
+      else{
+        x.save();
+        x.fillStyle='rgba(30,60,100,.95)';x.strokeStyle='rgba(120,190,255,.6)';x.lineWidth=2;
+        roundRect(cx-w/2,memTop-H*0.04,w,boxH,Math.min(12,w*0.2));x.fill();x.stroke();
+        x.shadowBlur=0;
+        x.fillStyle='#bcd8ff';x.font='bold '+F.cx+'px Trebuchet MS';x.textAlign='center';
+        x.fillText(c.label,cx,cy+F.cx*0.34);
+        x.fillStyle='rgba(170,205,255,.65)';x.font=F.sub+'px Trebuchet MS';
+        x.fillText(c.kr,cx,memBot+F.sub+H*0.03);
+        x.restore();
+      }
+    });
+
+    // protons (H+)
+    for(const p of protons){
+      p.glow+=.08;
+      if(p.rushing){ // chemiosmosis: facilitated diffusion DOWN through ATP synthase (space → matrix)
+        if(!p.entered){                                   // 1) funnel to the channel entrance (top of synthase)
+          p.x+=(p.synX-p.x)*0.18; p.y+=(memTop-p.y)*0.15;
+          if(Math.abs(p.x-p.synX)<W*0.02 && Math.abs(p.y-memTop)<H*0.03){p.entered=true;p.x=p.synX;}
+        } else {                                          // 2) stream straight DOWN through the channel
+          p.y+=p.rushSpeed; p.x=p.synX+Math.sin(p.y*0.15)*2*S;
+        }
+        if(p.y>memBot+H*0.12){p.dead=true;}               // emerges into the matrix
+      } else if(p.traveling){ // migrating from matrix, funnelling through the complex, into the space
+        p.x += (p.channelX - p.x)*0.14;   // slide into the protein channel
+        p.y -= p.speed;                    // steady upward conduction (no ballistic pop)
+        if(p.y<=p.targetY){ // arrived in intermembrane space — settle and STAY (builds gradient)
+          p.traveling=false;p.space=true;
+          p.hx=clamp(p.x+(Math.random()-.5)*40*S, W*0.04, W*0.96);
+          p.hy=clamp(p.y, H*0.05, memTop-H*0.04);p.ph=p.glow;
+        }
+      } else if(p.space){ // accumulated in intermembrane space: gentle jitter in place
+        p.x=p.hx+Math.sin(p.glow*.7+p.ph)*2.2*S;
+        p.y=p.hy+Math.cos(p.glow*.6+p.ph)*1.6*S;
+      } else { // ambient H+ floating gently in the matrix (stays below membrane)
+        p.x=p.hx+Math.sin(p.glow*.5+p.ph)*4*S;
+        p.y=p.hy+Math.cos(p.glow*.4+p.ph)*3*S;
+      }
+      const g=(Math.sin(p.glow)+1)/2;
+      x.save();
+      x.shadowColor='#ffd97a';x.shadowBlur=(12+g*8)*S;
+      x.fillStyle=`rgba(255,${200+g*40},120,.95)`;
+      x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill();
+      x.fillStyle='rgba(60,30,0,.9)';x.font='bold '+F.h+'px Trebuchet MS';x.textAlign='center';
+      x.fillText('H⁺',p.x,p.y+F.h*0.35);
+      x.restore();
+    }
+    protons=protons.filter(p=>!p.dead);
+
+    // electrons — bright light + tracing trail
+    for(const e of electrons){
+      const A=e.path[e.seg], B=e.path[e.seg+1];
+      if(!B){e.dead=true;continue;}
+      e.t+=e.speed;
+      const px=A.x+(B.x-A.x)*e.t, py=A.y+(B.y-A.y)*e.t;
+      e.trail.push({x:px,y:py});if(e.trail.length>28)e.trail.shift();
+      // draw glowing trail
+      for(let i=0;i<e.trail.length;i++){
+        const t=e.trail[i],al=i/e.trail.length;
+        x.save();x.globalAlpha=al*.9;
+        x.shadowColor=`hsl(${e.hue},100%,70%)`;x.shadowBlur=16*al*S;
+        x.fillStyle=`hsl(${e.hue},100%,${60+al*30}%)`;
+        x.beginPath();x.arc(t.x,t.y,(1+al*3.5)*S,0,7);x.fill();x.restore();
+      }
+      // bright head (tinted by the electron source)
+      x.save();x.shadowColor=`hsl(${e.hue},100%,80%)`;x.shadowBlur=22*S;
+      x.fillStyle='#eafcff';x.beginPath();x.arc(px,py,4.5*S,0,7);x.fill();
+      x.fillStyle=`hsl(${e.hue},100%,85%)`;x.font='bold '+F.e+'px Trebuchet MS';x.textAlign='center';
+      x.fillText('e⁻',px,py-F.e*0.9);x.restore();
+      if(e.t>=1){ // reached the next waypoint
+        e.seg++;e.t=0;
+        const wp=e.path[e.seg];
+        if(wp){
+          if(wp.photo){ lightFlash(wp.x); }
+          if(wp.splitWater){ formO2(wp.x); }
+          if(wp.pump){ pumpAt(wp.x); h2level=clamp(h2level+H2_MAX/12,0,H2_MAX); updateHud(); }
+          if(wp.nadph){ formNADPH(wp.x); e.dead=true; }
+        }
+      }
+    }
+    electrons=electrons.filter(e=>!e.dead);
+
+    // water droplets (H2O) forming at Complex IV, sinking into the matrix
+    for(const wd of waterDrops){
+      wd.y+=wd.vy; wd.life-=0.006; wd.wob+=0.12;
+      if(wd.life<=0||wd.y>H||wd.y<0){wd.dead=true;continue;}
+      const isNadph=!!wd.nadph, isO2=!!wd.o2;
+      const fill=isNadph?'rgba(196,121,255,.9)':(isO2?'rgba(120,205,255,.9)':'rgba(130,205,255,.9)');
+      const label=isNadph?'NADPH':(isO2?'O₂':'H₂O');
+      x.save();x.globalAlpha=Math.min(1,wd.life*1.6);
+      x.shadowColor=isNadph?'#c479ff':'#7fd0ff';x.shadowBlur=10*S;
+      x.fillStyle=fill;
+      x.beginPath();x.arc(wd.x+Math.sin(wd.wob)*1.5,wd.y,wd.r,0,7);x.fill();
+      x.fillStyle='rgba(8,26,44,.95)';x.font='bold '+(F.h*0.95)+'px Trebuchet MS';x.textAlign='center';
+      x.fillText(label,wd.x+Math.sin(wd.wob)*1.5,wd.y+F.h*0.34);
+      x.restore();
+    }
+    waterDrops=waterDrops.filter(wd=>!wd.dead);
+
+    // ATP particles
+    for(const a of atpParticles){
+      a.x+=a.vx;a.y+=a.vy;a.vy+=.12*vScale;a.life-=.012;a.rot+=.2;
+      if(a.life<=0){a.dead=true;continue;}
+      const aw=12*S, ah=9*S;
+      x.save();x.globalAlpha=a.life;x.translate(a.x,a.y);x.rotate(a.rot);
+      x.shadowColor='#ffd451';x.shadowBlur=16*S;
+      x.fillStyle='#ffd451';roundRect(-aw,-ah,aw*2,ah*2,5*S);x.fill();
+      x.fillStyle='#3a2a00';x.font='bold '+F.atp+'px Trebuchet MS';x.textAlign='center';x.fillText('ATP',0,F.atp*0.34);
+      x.restore();
+    }
+    atpParticles=atpParticles.filter(a=>!a.dead);
+
+    // keep animating only while Stage 3 is on screen (or finishing the climax) — saves battery on mobile
+    if(visible || vortexActive) raf=requestAnimationFrame(draw); else raf=null;
+  }
+
+  function drawSynthase(cx,cy,w){
+    const syR=clamp(H*0.10,16,44);            // rotor radius scales with canvas height
+    const stalkW=clamp(W*0.02,12,22);
+    // stalk in membrane
+    x.save();
+    x.fillStyle='rgba(40,70,110,.95)';x.strokeStyle='rgba(255,220,120,.5)';x.lineWidth=2;
+    roundRect(cx-stalkW/2,memTop-H*0.04,stalkW,memBot-memTop+H*0.04,6);x.fill();x.stroke();
+    // directional cue during chemiosmosis: H+ flow DOWN through the channel (facilitated diffusion)
+    if(vortexActive){
+      x.fillStyle='rgba(255,240,180,.85)';
+      for(let k=0;k<3;k++){
+        const ay=memTop+(memBot-memTop)*(0.22+0.28*k);
+        x.beginPath();x.moveTo(cx-4*S,ay);x.lineTo(cx+4*S,ay);x.lineTo(cx,ay+6*S);x.closePath();x.fill();
+      }
+    }
+    // rotating head (F1) below membrane in matrix — vortex
+    if(vortexActive)vortex+=0.5;
+    const hy=memBot+syR+H*0.03;
+    x.translate(cx,hy);
+    // vortex swirl glow
+    if(vortexActive){
+      for(let k=0;k<3;k++){
+        x.save();x.rotate(vortex*.4+k*2.1);
+        const rg=x.createRadialGradient(0,0,syR*0.1,0,0,syR*1.5);
+        rg.addColorStop(0,'rgba(255,220,120,.5)');rg.addColorStop(1,'rgba(255,120,200,0)');
+        x.fillStyle=rg;x.beginPath();x.arc(0,0,syR*1.5,0,7);x.fill();x.restore();
+      }
+    }
+    // rotor blades
+    x.rotate(vortex);
+    const blades=6;
+    for(let i=0;i<blades;i++){
+      x.save();x.rotate(i/blades*2*Math.PI);
+      const g=x.createLinearGradient(0,0,syR,0);
+      g.addColorStop(0,'#ffe89a');g.addColorStop(1,'#ff8bd0');
+      x.fillStyle=g;x.shadowColor='#ffd451';x.shadowBlur=(vortexActive?18:6)*S;
+      x.beginPath();x.moveTo(0,0);x.lineTo(syR*0.87,-syR*0.3);x.lineTo(syR,0);x.lineTo(syR*0.87,syR*0.3);x.closePath();x.fill();
+      x.restore();
+    }
+    // hub
+    x.fillStyle='#fff2c4';x.shadowBlur=(vortexActive?24:8)*S;x.shadowColor='#ffd451';
+    x.beginPath();x.arc(0,0,syR*0.38,0,7);x.fill();
+    x.restore();
+    // labels
+    x.fillStyle='rgba(255,220,150,.85)';x.font=F.syn+'px Trebuchet MS';x.textAlign='center';
+    x.fillText('ATP 합성효소',cx,memTop-H*0.05);
+    x.fillText('(화학삼투)',cx,Math.min(H-H*0.03, hy+syR+F.syn+H*0.02));
+  }
+
+  function roundRect(rx,ry,rw,rh,r){x.beginPath();x.moveTo(rx+r,ry);
+    x.arcTo(rx+rw,ry,rx+rw,ry+rh,r);x.arcTo(rx+rw,ry+rh,rx,ry+rh,r);
+    x.arcTo(rx,ry+rh,rx,ry,r);x.arcTo(rx,ry,rx+rw,ry,r);x.closePath();}
+
+  let resizeT=null;
+  addEventListener('resize',()=>{ if(started){clearTimeout(resizeT);resizeT=setTimeout(layout,120);} });
+  addEventListener('orientationchange',()=>{ if(started)setTimeout(layout,250); });
+  // re-fit the canvas whenever its container changes size (pane resize, no window event needed)
+  if(window.ResizeObserver){ new ResizeObserver(()=>{ if(started&&visible)layout(); }).observe(cv.parentNode); }
+  return {
+    onShow(){ visible=true; if(!started){started=true;layout();reset();} else {layout();} if(!raf)draw(); },
+    onHide(){ visible=false; },
+    fire(){fireElectron();},
+    chem(){chemiosmosis();},
+    reset(){reset();}
+  };
+})();
+$('#fireLight').onclick=()=>ETC.fire();
+$('#chemio').onclick=ETC.chem;
+$('#reset3').onclick=ETC.reset;
+$('#next1').onclick=()=>goStage(1);
+
+/* ============================================================
+   FINAL MODAL
+   ============================================================ */
+$('#restartAll').onclick=()=>{
+  score=0;$('#scoreVal').textContent=0;
+  stageDone.fill(false);
+  PSpool.atp=0;PSpool.nadph=0;
+  $$('.stage-tab').forEach((t,i)=>{t.classList.remove('done');if(i>0)t.classList.add('locked');});
+  buildStage2();ETC.reset();
+  $('#finModal').classList.remove('show');goStage(0);
+};
+
+/* ============================================================
+   INIT
+   ============================================================ */
+buildStage2();
+ETC.onShow();   // 명반응(panel0)이 첫 화면 — 초기 로드 시 캔버스 그리기 시작
+</script>
+</body>
+</html>
