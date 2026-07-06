@@ -143,6 +143,10 @@ header.top{display:flex;align-items:center;gap:9px;flex:0 0 auto}
 .btn.nadh{background:linear-gradient(120deg,#4fe3ff,#8ff2ff);box-shadow:0 8px 22px rgba(79,227,255,.35)}
 .btn.fadh{background:linear-gradient(120deg,#3ff09a,#9dffc8);box-shadow:0 8px 22px rgba(63,240,154,.35)}
 .btn.light{background:linear-gradient(120deg,#ffe066,#fff2a8);color:#3a2c00;box-shadow:0 8px 22px rgba(255,224,102,.4)}
+.btn.cyclic{background:linear-gradient(120deg,#ffb15a,#ffd6a0);color:#3a2600;box-shadow:0 8px 22px rgba(255,177,90,.38)}
+.btn.modebtn{transition:.2s}
+.btn.modebtn:not(.active){opacity:.5;filter:grayscale(.35)}
+.btn.modebtn.active{box-shadow:0 0 0 2px var(--ink),0 8px 22px rgba(0,0,0,.35)}
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none}
 .rowbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px;align-items:center;flex:0 0 auto}
 
@@ -311,10 +315,6 @@ path.spoke.lit{stroke:var(--citrate);stroke-width:3.5;filter:drop-shadow(0 0 6px
   <section class="panel active" id="panel0">
     <div class="card">
       <h2>1단계 · 명반응 (광인산화)</h2>
-      <div class="subtabs">
-        <button class="subtab active" data-mode="noncyclic">비순환적 광인산화</button>
-        <button class="subtab" data-mode="cyclic">순환적 광인산화</button>
-      </div>
       <div class="sub" id="lightSub">☀️ <b>비순환적</b>: 물이 분해되어 <b>O₂</b>가 나오고, 전자가 PSII→b6f→PSI를 지나 <b>NADPH</b>가 됩니다. H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>도 생성 (ATP·NADPH·O₂).</div>
 
       <div class="etcWrap"><canvas id="etc"></canvas></div>
@@ -331,7 +331,8 @@ path.spoke.lit{stroke:var(--citrate);stroke-width:3.5;filter:drop-shadow(0 0 6px
         </div>
       </div>
       <div class="etcbtns" style="margin-top:9px">
-        <button class="btn light" id="fireLight">☀️ 빛 비추기</button>
+        <button class="btn light modebtn active" id="modeNoncyclic" data-mode="noncyclic">☀️ 비순환적 광인산화</button>
+        <button class="btn cyclic modebtn" id="modeCyclic" data-mode="cyclic">🔄 순환적 광인산화</button>
         <button class="btn gold" id="chemio" disabled>🌀 광인산화 (ATP 합성)</button>
         <button class="btn ghost" id="reset3">초기화</button>
         <button class="btn gold" id="next1" disabled style="margin-left:auto">암반응 →</button>
@@ -748,7 +749,7 @@ const ETC=(function(){
   function reset(){
     electrons=[];protons=[];atpParticles=[];shockwaves=[];waterDrops=[];
     h2level=0;atpMade=0;vortex=0;vortexActive=false;
-    $('#fireLight').disabled=false;$('#chemio').disabled=true;
+    $$('.modebtn').forEach(b=>b.disabled=false);$('#chemio').disabled=true;
     $('#pATP').textContent='0';$('#pNADPH').textContent='0';$('#pO2').textContent='0';
     updateHud();
     // seed some ambient protons in matrix
@@ -823,7 +824,7 @@ const ETC=(function(){
   /* ---------- CHEMIOSMOSIS CLIMAX ---------- */
   function chemiosmosis(){
     if(vortexActive||Math.round(h2level)<100)return;
-    vortexActive=true;$('#chemio').disabled=true;$('#fireLight').disabled=true;
+    vortexActive=true;$('#chemio').disabled=true;$$('.modebtn').forEach(b=>b.disabled=true);
     Audio2.padStart();setTimeout(()=>Audio2.padRamp(),1400);
     Audio2.whirl();
     toast('🌀 광인산화! H⁺가 ATP 합성효소를 통해 스트로마로 나가며 ATP 생성','info');
@@ -1090,23 +1091,27 @@ const ETC=(function(){
     reset(){reset();}
   };
 })();
-$('#fireLight').onclick=()=>ETC.fire();
 $('#chemio').onclick=ETC.chem;
 $('#reset3').onclick=ETC.reset;
 $('#next1').onclick=()=>goStage(1);
-// 명반응 모드 전환: 비순환적 / 순환적 광인산화
+// 명반응: 비순환적 / 순환적 광인산화 버튼 — 누르면 그 방식으로 전자를 흘림
 const lightModeInfo={
   noncyclic:'☀️ <b>비순환적</b>: 물이 분해되어 <b>O₂</b>가 나오고, 전자가 PSII→b6f→PSI를 지나 <b>NADPH</b>가 됩니다. H⁺가 ATP 합성효소로 빠져나가며 <b>ATP</b>도 생성 (ATP·NADPH·O₂).',
   cyclic:'🔄 <b>순환적</b>: 전자가 PSI→페레독신→b6f→PSI로 <b>되돌아 순환</b>합니다. b6f에서 H⁺만 펌프 → <b>ATP만</b> 생성 (NADPH·O₂ 없음, 물 분해 안 함).'
 };
-$$('.subtab').forEach(tab=>tab.onclick=()=>{
-  const m=tab.dataset.mode;
-  $$('.subtab').forEach(x=>x.classList.toggle('active',x===tab));
-  ETC.setMode(m);
-  $('#lightSub').innerHTML=lightModeInfo[m];
-  const cyc=m==='cyclic';
-  $('#tallyNADPH').classList.toggle('dim',cyc);
-  $('#tallyO2').classList.toggle('dim',cyc);
+let currentLightMode='noncyclic';
+$$('.modebtn').forEach(b=>b.onclick=()=>{
+  const m=b.dataset.mode;
+  $$('.modebtn').forEach(x=>x.classList.toggle('active',x===b));
+  if(m!==currentLightMode){
+    currentLightMode=m;
+    ETC.setMode(m);                 // 모드 전환 시 캔버스 초기화 → 깨끗한 시연
+    $('#lightSub').innerHTML=lightModeInfo[m];
+    const cyc=m==='cyclic';
+    $('#tallyNADPH').classList.toggle('dim',cyc);
+    $('#tallyO2').classList.toggle('dim',cyc);
+  }
+  ETC.fire();                       // 이 방식의 전자 방출
 });
 
 /* ============================================================
